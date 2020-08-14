@@ -1,0 +1,261 @@
+---
+title: "Case Study 2"
+author: "Bo Yun"
+date: "8/1/2020"
+output: html_document
+---
+
+## Executive Summary
+# The goal of this analysis is to create prediction models for both Attrition rate and Salary using the training, competition and validation data set. 
+# 780 number of employees in the Training set. 300 number of employees in both Competition and Validation set. 
+# Naive Bayes classification model was created for the Attrition prediction. Multilinear regression, Support Vector Machine, Random Forest and Linear discriminate Analysis were all utilized for the salary prediction. 
+
+
+# Importing necessary libraries for this study
+```{r echo=FALSE}
+# Importing necessary libraries
+library(mvtnorm)
+library(dplyr)
+library(class)
+library(tidyr)
+library(tidyverse)
+library(dplyr)
+library(reshape2)
+library(ggthemes)
+library(caret)
+library(e1071)
+library(usmap)
+library(ggplot2)
+library(GGally)
+library(rpart)
+library(MASS)
+```
+
+# Import Data
+```{r echo=FALSE}
+# Importing Training set
+training=read.csv("~/Desktop/SMU/DS 6306_Doing Data Science_Lindsey/Case Study 2 - Attrition rate/CaseStudy2-data.csv",header=TRUE)
+
+# Importing Test set1 (No Attrition) - Predict Attrition
+Attrition=read.csv("~/Desktop/SMU/DS 6306_Doing Data Science_Lindsey/Case Study 2 - Attrition rate/CaseStudy2Compset No Attrition.csv",header=TRUE)
+  
+# Importing Test set2 (No Salary) - Predict Monthly salary
+Salary=read.csv("~/Desktop/SMU/DS 6306_Doing Data Science_Lindsey/Case Study 2 - Attrition rate/CaseStudy2Compset No Salary.csv",header=TRUE)
+```
+
+
+```{r}
+# Using Recursive Partitioning to see which variables are important to Attrition
+library(rpart)
+library(tidyverse)
+
+fit <- rpart(Attrition ~ DistanceFromHome+MaritalStatus+Education+Department+Gender+JobSatisfaction+JobInvolvement+OverTime+StockOptionLevel+PerformanceRating+RelationshipSatisfaction+MonthlyRate+TrainingTimesLastYear+WorkLifeBalance+YearsSinceLastPromotion+YearsWithCurrManager, data = training)
+df <- data.frame(imp = fit$variable.importance)
+df2 <- df %>% 
+  tibble::rownames_to_column() %>% 
+  dplyr::rename("variable" = rowname) %>% 
+  dplyr::arrange(imp) %>%
+  dplyr::mutate(variable = forcats::fct_inorder(variable))
+ggplot2::ggplot(df2) +
+  geom_col(aes(x = variable, y = imp),
+           col = "black", show.legend = F) +
+  coord_flip() +
+  scale_fill_grey() +
+  theme_bw() +ggtitle("Variable Importance")
+
+# Result is OverTime, StockOptionLevel, and Marital Status that are the top three contributors to the Attrition
+```
+
+# ============================================= Attrition Prediction ==================================================
+
+## Naive Bayes --------------------------------------------------------------------------------------------------------
+
+### Predicting Attrition of the Competition set (No Attrition set)
+```{r}
+# Factorizing Attrition classification into either "No" or "Yes"
+training$Attrition=factor(training$Attrition,labels=c("No","Yes"))
+
+# Creating Naives Bayes model using training set
+NBmodel = naiveBayes(training[,c(19,24,29)],training$Attrition)
+
+# Predicting Attrition of Test set with NB model
+predict(NBmodel,Attrition[,c(18,23,28)],type="class") 
+```
+
+### Predicting Attrition of the Validation set(No Salary) and Training set and calculating ConfusionMatrix
+```{r}
+# Predicting Attrition of Test set with NB model
+predict(NBmodel,Salary[,c(19,23,28)],type="class")
+table(predict(NBmodel,Salary[,c(19,23,28)],type="class"), Salary$Attrition) 
+CMnb=confusionMatrix(table(predict(NBmodel,Salary[,c(19,23,28)],type="class"), Salary$Attrition))
+
+
+# Predicting Attrition of Training set with NB model
+predict(NBmodel,training[,c(19,24,29)],type="class")
+table(predict(NBmodel,training[,c(19,24,29)],type="class"), training$Attrition) 
+CMnbT=confusionMatrix(table(predict(NBmodel,training[,c(19,24,29)],type="class"), training$Attrition))
+```
+
+
+## Random Forest ------------------------------------------------------------------------------------------------------
+
+### Predicting Attrition of the Competition set (No Attrition set)
+```{r}
+library(randomForest)
+
+# Creating Random Forest model using training set
+RFmodel = randomForest(training$Attrition ~ ., data=training[,c(19,24,29)],ntree=300, mtry=2, importance=TRUE)
+
+# Predicting Attrition of Test set with NB model
+predict(RFmodel,Attrition[,c(18,23,28)],type="class") 
+```
+
+### Predicting Attrition of the Validation set(No Salary) and Training set and calculating confusionMatrix
+```{r}
+# Predicting Attrition of Test set with Random Forest model
+predict(RFmodel,Salary[,c(19,23,28)],type="class")
+table(predict(RFmodel,Salary[,c(19,23,28)],type="class"), Salary$Attrition) 
+CMrf=confusionMatrix(table(predict(RFmodel,Salary[,c(19,23,28)],type="class"), Salary$Attrition))
+
+# Predicting Attrition of Training set with Random Forest model
+predict(RFmodel,training[,c(19,24,29)])
+table(predict(RFmodel,training[,c(19,24,29)],type="class"), training$Attrition) 
+CMrfT=confusionMatrix(table(predict(RFmodel,training[,c(19,24,29)]), training$Attrition))
+```
+
+
+
+## Support Vector Machine ---------------------------------------------------------------------------------------------
+
+### Predicting Attrition of the Competition set (No Attrition set)
+```{r}
+library(e1071)
+# Creating SVM model using training set
+SVMmodel = svm(training$Attrition ~ ., data = training[,c(19,24,29)], type ="C-classification", kernel="linear", scale=FALSE)
+
+# Predicting Attrition of Test set with NB model
+predict(SVMmodel,Attrition[,c(18,23,28)],type="class") 
+```
+
+### Predicting Attrition of the Validation set(No Salary) and Training set and calculating confusionMatrix
+```{r}
+# Predicting Attrition of Test set with Random Forest model
+predict(SVMmodel,Salary[,c(19,23,28)],type="class")
+table(predict(SVMmodel,Salary[,c(19,23,28)],type="class"), Salary$Attrition) 
+CMsvm=confusionMatrix(table(predict(SVMmodel,Salary[,c(19,23,28)],type="class"), Salary$Attrition))
+
+
+# Predicting Attrition of Training set with Random Forest model
+predict(SVMmodel,training[,c(19,24,29)])
+table(predict(SVMmodel,training[,c(19,24,29)],type="class"), training$Attrition) 
+CMsvmT=confusionMatrix(table(predict(SVMmodel,training[,c(19,24,29)]), training$Attrition))
+
+```
+
+
+
+## Linear Discriminant Analysis ---------------------------------------------------------------------------------------------
+
+### Predicting Attrition of the Competition set (No Attrition set)
+```{r}
+library(e1071)
+# Creating LDA model using training set
+LDAmodel = lda(training$Attrition ~ ., data = training[,c(19,24,29)], type ="C-classification", kernel="linear", scale=FALSE)
+
+# Predicting Attrition of Test set with NB model
+LDAc=predict(LDAmodel,Attrition[,c(18,23,28)],type="class") 
+```
+
+### Predicting Attrition of the Validation set(No Salary) and Training set and calculating confusionMatrix
+```{r}
+# Predicting Attrition of Test set with Random Forest model
+LDAv=predict(LDAmodel,Salary[,c(19,23,28)],type="class")
+table(LDAv$class, Salary$Attrition) 
+CMlda=confusionMatrix(table(LDAv$class, Salary$Attrition))
+
+
+# Predicting Attrition of Training set with Random Forest model
+LDAt=predict(LDAmodel,training[,c(19,24,29)])
+table(LDAt$class, training$Attrition) 
+CMldaT=confusionMatrix(table(LDAt$class, training$Attrition))
+
+```
+
+
+### Comparing NB, Random Forest, SVM and LDA and picking the best model
+
+```{r}
+# Exporting output result to Excel format with two columns "ID" and "Attrition"
+dfAttrition=data.frame(ID=Attrition$ID,Attrition=predict(NBmodel,Attrition[,c(18,23,28)],type="class"))
+write.csv(dfAttrition, file = "~/Desktop/SMU/Case2PredictionsYun Attrition.csv", row.names = FALSE)
+```
+
+
+
+
+# ============================================= Income Prediction =====================================================
+
+
+# Income vs Continuous variable correlation plot
+```{r}
+# Correlation between income vs other variables
+dplyr::select(training,Age, PercentSalaryHike, TotalWorkingYears, YearsAtCompany,YearsSinceLastPromotion, MonthlyIncome) %>% ggpairs() + labs("Distributions and correlation")
+
+```
+
+# Income vs Categorial variables correlation plots
+```{r}
+# Education field vs Monthly Income
+training%>%ggplot(aes(x=EducationField, y=MonthlyIncome))+geom_boxplot()+ggtitle("Education field vs Income")+theme_bw()
+
+# Department vs Monthly Income
+training%>%ggplot(aes(x=Department, y=MonthlyIncome))+geom_boxplot()+ggtitle("Department vs Income")+theme_bw()
+
+# Marital Status vs Monthly Income
+training%>%ggplot(aes(x=MaritalStatus, y=MonthlyIncome))+geom_boxplot()+ggtitle("Marital Status vs Income")+theme_bw()
+
+# Job Role vs Monthly Income
+training%>%ggplot(aes(x=JobRole, y=MonthlyIncome))+geom_boxplot()+ggtitle("Job Role vs Income")+theme_bw()
+ 
+# Business travel vs Monthly Income
+training%>%ggplot(aes(x=BusinessTravel, y=MonthlyIncome))+geom_boxplot()+ggtitle("Business Travel vs Income")+theme_bw()
+ 
+```
+
+# Predicting salary on Competition set using Linear regression model
+```{r}
+# Setting up Linear regression model
+LINmodel <- lm(training$MonthlyIncome ~ JobRole+TotalWorkingYears+PerformanceRating+WorkLifeBalance+YearsAtCompany, data=training)
+summary(LINmodel)
+
+# Predicting salary on No Salary data 
+predict(LINmodel, Salary)
+
+# Exporting output result to Excel format with two columns "ID" and "Salary"
+dfSalary=data.frame(ID=Salary$ID, Salary=predict(LINmodel,Salary))
+write.csv(dfSalary, file = "~/Desktop/SMU/Case2PredictionsYun Salary.csv", row.names = FALSE)
+```
+
+
+# Predicting salary on Validation set and Training set
+```{r}
+# Predicting salary on Validation data 
+PredVa=predict(LINmodel, Attrition)
+#RMSE
+sqrt(mean(PredVa-Attrition$MonthlyIncom)^2)
+
+
+# Predicting salary on training data 
+PredTra=predict(LINmodel, training)
+#RMSE
+sqrt(mean(PredTra-training$MonthlyIncome)^2)
+
+
+```
+
+# Link to Youtube
+```{r}
+# Please click the link below
+# https://www.youtube.com/watch?v=UYDLkpMHPNM
+```
+
