@@ -1,12 +1,14 @@
-# CaseStudy2DDS
+# Attrition_Salary - Prediction
 
-## Hello, Welcome to Bo's Repo
+## Dataset
+- 870 # employee data in the Training set 
+- 300 # employee data in the Competition set(No attrition provided)
+- 300 # employee data in the Validation set(No salary provided)
+- Prediction of Attrition classification on No attrition set
+- Prediction of Salary on No salary data (RMSE <$3000)
 
-### The followings are attached in this repo for the case study 2.
-#### * PPT slides
-#### * Rmd file(youtube link attached)
-#### * Rmd html file
-#### * Attrition and Salary prediction in csv file 
+## Models deployed for prediction
+- Random Forest, Support Vector Machine, Linear Discriminant Analysis 
 
 ## Please check out my youtube video for the presentation! Link below
-## https://www.youtube.com/watch?v=UYDLkpMHPNM
+- https://www.youtube.com/watch?v=UYDLkpMHPNM
